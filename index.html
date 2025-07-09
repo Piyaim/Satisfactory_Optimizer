@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Plan d'usine Satisfactory</title>
+<link href="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.css" rel="stylesheet" />
+<script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<style>
+  .resource-flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2em 2.2em;
+    margin-bottom: 1.2em;
+    align-items: flex-end;
+  }
+  .resource-flex label {
+    display: flex;
+    align-items: center;
+    margin-right: 1.7em;
+    margin-bottom: 0.5em;
+    min-width: 190px;
+    font-size: 1.08rem;
+    white-space: nowrap;
+  }
+  @media (max-width: 700px) {
+    .resource-flex {
+      flex-direction: row;
+      gap: 0.8em 1.1em;
+    }
+    .resource-flex label {
+      min-width: 120px;
+      font-size: 1rem;
+    }
+  }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #e5ecf2;
+    color: #232a2f;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2.6rem;
+    letter-spacing: 0.05em;
+    color: #23408e;
+    text-shadow: 1px 2px 0 #fff, 0 4px 18px #cbd6ee;
+    margin-top: 1.8rem;
+  }
+
+  .input-section, .output-section, .schema-section {
+    background: rgba(255,255,255,0.94);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(60, 90, 130, 0.07);
+    padding: 1.4rem 2rem;
+    margin: 1.2rem auto;
+    max-width: 960px;
+    border: 1.5px solid #dbe5f1;
+    transition: box-shadow .22s;
+  }
+
+  .input-section label {
+    font-size: 1.14rem;
+    margin: 0.7em 0 0.3em 0;
+    color: #243555;
+  }
+
+  .input-section input[type="number"] {
+    padding: 0.35em 0.7em;
+    font-size: 1.1em;
+    border: 1px solid #c8d6ec;
+    border-radius: 6px;
+    background: #f8fbff;
+    margin-left: 0.5em;
+    margin-right: 2em;
+    width: 5em;
+    outline: none;
+    transition: border .2s;
+  }
+  .input-section input[type="number"]:focus {
+    border-color: #6291fd;
+  }
+
+  .input-section button {
+    background: linear-gradient(90deg,#3a6ee0 15%,#4ef0c2 100%);
+    border: none;
+    color: #fff;
+    font-weight: bold;
+    padding: 0.8rem 2.2rem;
+    font-size: 1.13rem;
+    border-radius: 25px;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    box-shadow: 0 3px 8px rgba(64,100,180,0.10);
+    transition: background .25s, box-shadow .2s;
+  }
+  .input-section button:hover {
+    background: linear-gradient(90deg,#194b97 15%,#7df5d7 100%);
+    box-shadow: 0 5px 24px rgba(48,130,255,0.16);
+  }
+
+  #final-output {
+    font-size: 1.6rem;
+    font-weight: bold;
+    background: #f0faff;
+    border-left: 8px solid #41c5f6;
+    color: #1858c0;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px #eaf2ff7e;
+    margin-bottom: 2rem;
+  }
+
+  .machine-list {
+    background: #f5f9ff;
+    border-radius: 7px;
+    border-left: 4px solid #1976d2;
+    padding: 1.1em 2.2em 1em 1em;
+    margin: 0.7em 0 1.2em 0.8em;
+    font-size: 1.07em;
+    box-shadow: 0 2px 5px #e6eefc80;
+  }
+
+  h2, h3 {
+    color: #294b7c;
+    font-size: 1.28em;
+    margin-bottom: 0.7em;
+    font-weight: 700;
+  }
+
+  #prod-graph {
+    background: #242c34;
+    border-radius: 14px;
+    box-shadow: 0 8px 28px #0000000d;
+    padding: 0;
+    margin: 1.4em auto 2em auto;
+    min-height: 600px;
+  }
+
+  .missing {
+    background: #fff3f2;
+    border-left: 5px solid #e14c3a;
+    color: #a62114;
+    font-size: 1.13em;
+    border-radius: 8px;
+    margin: 1.1em 0;
+    padding: 0.85em 1.2em;
+    font-weight: bold;
+    text-shadow: none;
+    box-shadow: 0 2px 8px #ffe7e76c;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .missing::before {
+    content: "⚠️";
+    margin-right: 0.6em;
+    font-size: 1.17em;
+  }
+</style>
+</head>
+<body>
+
+<h1>Calculateur de plan d'usine</h1>
+
+<div class="input-section">
+  <label for="finalItem">Ressource à produire :</label>
+  <select id="finalItem" class="choices-select">
+    <option value="Iron Ingot" data-img="images/120px-Iron_Ingot.webp">Lingot de fer</option>
+    <option value="Copper Ingot" data-img="images/120px-Copper_Ingot.webp">Lingot de cuivre</option>
+    <option value="Caterium Ingot" data-img="images/120px-Caterium_Ingot.webp">Lingot de catérium</option>
+    <option value="Steel Ingot" data-img="images/120px-Steel_Ingot.webp">Lingot d'acier</option>
+    <option value="Iron Plate" data-img="images/120px-Iron_Plate.webp">Plaque de fer</option>
+    <option value="Iron Rod" data-img="images/120px-Iron_Rod.webp">Tige de fer</option>
+    <option value="Screw" data-img="images/120px-Screws.webp">Vis</option>
+    <option value="Wire" data-img="images/120px-Wire.webp">Fil de cuivre</option>
+    <option value="Cable" data-img="images/120px-Cable.webp">Câble</option>
+    <option value="Concrete" data-img="images/120px-Concrete.webp">Béton</option>
+    <option value="Steel Beam" data-img="images/120px-Steel_Beam.webp">Poutre d'acier</option>
+    <option value="Steel Pipe" data-img="images/120px-Steel_Pipe.webp">Tube d'acier</option>
+    <option value="Reinforced Iron Plate" data-img="images/120px-Reinforced_Iron_Plate.webp">Plaque de fer renforcée</option>
+    <option value="Rotor" data-img="images/120px-Rotor.webp">Rotor</option>
+    <option value="Modular Frame" data-img="images/120px-Modular_Frame.webp">Cadre modulaire</option>
+    <option value="Encased Industrial Beam" data-img="images/120px-Encased_Industrial_Beam.webp">Poutre d'acier garnie</option>
+    <option value="Stator" data-img="images/120px-Stator.webp">Stator</option>
+    <option value="Motor" data-img="images/120px-Motor.webp">Moteur</option>
+    <option value="Smart Plating" data-img="images/120px-Smart_Plating.webp">Plaque intelligente</option>
+    <option value="Versatile Framework" data-img="images/120px-Versatile_Framework.png">Structure polyvalente</option>
+    <option value="Automated Wiring" data-img="images/120px-Automated_Wiring.webp">Câblage automatisé</option>
+    <option value="Plastic" data-img="images/120px-Plastic.webp">Plastique</option>
+    <option value="Rubber" data-img="images/120px-Rubber.webp">Caoutchouc</option>
+  </select>
+</div>
+
+<div class="input-section">
+  <h2>Stock de ressources brutes disponible (par minute) :</h2>
+  <div class="resource-flex">
+    <label>Fer: <input type="number" id="Iron Ore" value="0"></label>
+    <label>Cuivre: <input type="number" id="Copper Ore" value="0"></label>
+    <label>Calcaire: <input type="number" id="Limestone" value="0"></label>
+    <label>Charbon: <input type="number" id="Coal" value="0"></label>
+    <label>Catérium: <input type="number" id="Caterium Ore" value="0"></label>
+    <label>Quartz brut: <input type="number" id="Raw Quartz" value="0"></label>
+    <label>Pétrole brut (m³/min): <input type="number" id="Crude Oil" value="0"></label>
+  </div>
+  <button id="btn-calc">Calculer le plan</button>
+</div>
+<div id="missing-resources" class="missing"></div>
+
+<div id="plan" class="output-section">
+  <h2>Plan d'usine :</h2>
+  <div id="smelter-section">
+    <h3>Fonderies</h3>
+    <ul class="machine-list" id="smelter-list"></ul>
+  </div>
+  <div id="foundry-section">
+    <h3>Fonderies avancées</h3>
+    <ul class="machine-list" id="foundry-list"></ul>
+  </div>
+  <div id="constructor-section">
+    <h3>Constructeurs</h3>
+    <ul class="machine-list" id="constructor-list"></ul>
+  </div>
+  <div id="assembler-section">
+    <h3>Assembleurs</h3>
+    <ul class="machine-list" id="assembler-list"></ul>
+  </div>
+  <div id="refinery-section">
+    <h3>Raffineries</h3>
+    <ul class="machine-list" id="refinery-list"></ul>
+  </div>
+</div>
+<div id="final-output" style="margin-top: 1.5rem; background: #e3ffe9; border-left: 6px solid #26b339; padding: 1rem; border-radius: 8px; font-size: 1.25rem; font-weight: bold; text-align: center;"></div>
+
+<div style="height: 600px; border:1px solid #bbb; margin:2rem 0; background:#262626; border-radius:12px;">
+  <div id="prod-graph" style="width:100%;height:600px;"></div>
+</div>
+<div class="schema-section" style="display:none;">
+  <h2>Schéma d'implantation</h2>
+  <div id="canvasContainer" style="overflow: auto; cursor: grab; width: 100%; height: 600px; margin: 0 auto; max-width: 100%;">
+    <canvas id="factoryDiagram" width="1000" height="600"></canvas>
+  </div>
+</div>
+
+<script>
+  // Définition des recettes (taux par minute par machine à 100%)
+  const recipes = {
+    // Smelter (Fonderie)
+    "Iron Ingot": { building: "Fonderie", inputs: {"Iron Ore": 30}, output: 30 },
+    "Copper Ingot": { building: "Fonderie", inputs: {"Copper Ore": 30}, output: 30 },
+    "Caterium Ingot": { building: "Fonderie", inputs: {"Caterium Ore": 45}, output: 15 },
+    // Foundry (Fonderie avancée)
+    "Steel Ingot": { building: "Fonderie avancée", inputs: {"Iron Ore": 45, "Coal": 45}, output: 45 },
+    // Constructor (Constructeur)
+    "Iron Plate": { building: "Constructeur", inputs: {"Iron Ingot": 30}, output: 20 },
+    "Iron Rod": { building: "Constructeur", inputs: {"Iron Ingot": 15}, output: 15 },
+    "Wire": { building: "Constructeur", inputs: {"Copper Ingot": 15}, output: 30 },
+    "Cable": { building: "Constructeur", inputs: {"Wire": 60}, output: 30 },
+    "Concrete": { building: "Constructeur", inputs: {"Limestone": 45}, output: 15 },
+    "Screw": { building: "Constructeur", inputs: {"Iron Rod": 10}, output: 40 },
+    "Steel Beam": { building: "Constructeur", inputs: {"Steel Ingot": 60}, output: 15 },
+    "Steel Pipe": { building: "Constructeur", inputs: {"Steel Ingot": 30}, output: 20 },
+    "Quickwire": { building: "Constructeur", inputs: {"Caterium Ingot": 15}, output: 60 },
+    "Copper Sheet": { building: "Constructeur", inputs: {"Copper Ingot": 20}, output: 10 },
+    // Assembler (Assembleur)
+    "Reinforced Iron Plate": { building: "Assembleur", inputs: {"Iron Plate": 30, "Screw": 60}, output: 5 },
+    "Rotor": { building: "Assembleur", inputs: {"Iron Rod": 20, "Screw": 100}, output: 4 },
+    "Modular Frame": { building: "Assembleur", inputs: {"Reinforced Iron Plate": 3, "Iron Rod": 12}, output: 2 },
+    "Encased Industrial Beam": { building: "Assembleur", inputs: {"Steel Beam": 18, "Concrete": 36}, output: 6 },
+    "Stator": { building: "Assembleur", inputs: {"Steel Pipe": 15, "Wire": 40}, output: 5 },
+    "Motor": { building: "Assembleur", inputs: {"Rotor": 10, "Stator": 10}, output: 5 },
+    "Smart Plating": { building: "Assembleur", inputs: {"Reinforced Iron Plate": 2, "Rotor": 2}, output: 2 },
+    "Versatile Framework": { building: "Assembleur", inputs: {"Modular Frame": 2.5, "Steel Beam": 30}, output: 5 },
+    "Automated Wiring": { building: "Assembleur", inputs: {"Stator": 2.5, "Cable": 50}, output: 2.5 },
+    // Refinery (Raffinerie)
+    "Plastic": { building: "Raffinerie", inputs: {"Crude Oil": 30}, output: 20, byproduct: {"Heavy Oil Residue": 10} },
+    "Rubber": { building: "Raffinerie", inputs: {"Crude Oil": 30}, output: 20, byproduct: {"Heavy Oil Residue": 20} },
+    "Fuel": { building: "Raffinerie", inputs: {"Crude Oil": 60}, output: 40, byproduct: {"Polymer Resin": 30} }
+  };
+
+  // Dictionnaire de noms d'items pour affichage
+  const itemName = {
+    "Iron Ingot": "Lingot de fer", "Copper Ingot": "Lingot de cuivre", "Caterium Ingot": "Lingot de catérium",
+    "Steel Ingot": "Lingot d'acier", "Iron Plate": "Plaque de fer", "Iron Rod": "Tige de fer", "Screw": "Vis",
+    "Wire": "Fil de cuivre", "Cable": "Câble", "Concrete": "Béton", "Steel Beam": "Poutre d'acier",
+    "Steel Pipe": "Tube d'acier", "Reinforced Iron Plate": "Plaque de fer renforcée", "Rotor": "Rotor",
+    "Modular Frame": "Cadre modulaire", "Encased Industrial Beam": "Poutre d'acier garnie", "Stator": "Stator",
+    "Motor": "Moteur", "Smart Plating": "Plaque intelligente", "Versatile Framework": "Structure polyvalente",
+    "Automated Wiring": "Câblage automatisé", "Plastic": "Plastique", "Rubber": "Caoutchouc",
+    "Iron Ore": "fer", "Copper Ore": "cuivre", "Limestone": "calcaire", "Coal": "charbon",
+    "Caterium Ore": "catérium", "Raw Quartz": "quartz brut", "Crude Oil": "pétrole brut",
+    "Heavy Oil Residue": "résidu d'huile lourde", "Polymer Resin": "résine polymère"
+  };
+
+  // Catégories de machines pour regroupement du plan
+  const plan = { "Smelter": [], "Foundry": [], "Constructor": [], "Assembler": [], "Refinery": [] };
+  const buildingCategory = {
+    "Fonderie": "Smelter", "Fonderie avancée": "Foundry",
+    "Constructeur": "Constructor", "Assembleur": "Assembler", "Raffinerie": "Refinery"
+  };
+
+  // Liste des ressources brutes de base
+  const baseResources = ["Iron Ore", "Copper Ore", "Limestone", "Coal", "Caterium Ore", "Raw Quartz", "Crude Oil"];
+  
+const factoryGraph = [];
+const colors = {
+  Smelter: "#4caf50",
+  Foundry: "#9c27b0",
+  Constructor: "#ff9800",
+  Assembler: "#2196f3",
+  Refinery: "#795548"
+};
+
+const typeMap = {
+  "Fonderie": "Smelter",
+  "Fonderie avancée": "Foundry",
+  "Constructeur": "Constructor",
+  "Assembleur": "Assembler",
+  "Raffinerie": "Refinery"
+};
+    
+const canvas = document.getElementById("factoryDiagram");
+const ctx = canvas.getContext("2d");
+
+const container = document.getElementById("canvasContainer");
+let isDragging = false;
+let dragStartX, dragStartScrollLeft;
+
+
+container.addEventListener("mousedown", e => {
+  e.preventDefault();
+  isDragging = true;
+  dragStartX = e.clientX;
+  dragStartScrollLeft = container.scrollLeft;
+  container.style.cursor = "grabbing";
+});
+
+document.addEventListener("mousemove", e => {
+  if (!isDragging) return;
+  e.preventDefault();
+  const dx = e.clientX - dragStartX;
+  container.scrollLeft = dragStartScrollLeft - dx;
+});
+
+document.addEventListener("mouseup", () => {
+  if (!isDragging) return;
+  isDragging = false;
+  container.style.cursor = "grab";
+});
+
+
+function getItemImage(item) {
+  const imgRawMap = {
+    "fer": "Iron_Ore.webp",
+    "Iron Ore": "Iron_Ore.webp",
+    "cuivre": "Copper_Ore.png",
+    "Copper Ore": "Copper_Ore.png",
+    "calcaire": "Limestone.png",
+    "Limestone": "Limestone.png",
+    "charbon": "Coal.webp",
+    "Coal": "Coal.webp",
+    "catérium": "Caterium_Ore.webp",
+    "Caterium Ore": "Caterium_Ore.webp",
+    "quartz brut": "Raw_Quartz.webp",
+    "Raw Quartz": "Raw_Quartz.webp",
+    "pétrole brut": "Petroleum_Coke.webp",
+    "Crude Oil": "Petroleum_Coke.webp"
+  };
+  if (imgRawMap[item]) {
+    return "images/120px-" + imgRawMap[item];
+  }
+
+  // 1. Si l'item est en FR, on cherche la clé EN associée dans itemName
+  let enKey = Object.keys(itemName).find(k => itemName[k] === item);
+  if (enKey) {
+    // Exception pour la vis (screw)
+    if (enKey === "Screw") return "images/120px-Screws.webp";
+    // Ajout pour Versatile Framework
+    if (enKey === "Versatile Framework") return "images/120px-Versatile_Framework.png";
+    return "images/120px-" + enKey.replace(/ /g,"_") + ".webp";
+  }
+  // 2. Cas spéciaux/override si besoin
+  const imgMap = {
+    "Structure polyvalente": "Versatile_Framework.png",
+    "Poutre d'acier garnie": "Encased_Industrial_Beam.webp",
+    "Plaque de fer renforcée": "Reinforced_Iron_Plate.webp",
+    "Fil de cuivre": "Wire.webp",
+    "Plaque intelligente": "Smart_Plating.webp",
+    "Vis": "Screws.webp"
+  };
+  if (imgMap[item]) {
+    return "images/120px-" + imgMap[item];
+  }
+  // 3. Sinon, fallback comme avant
+  const clean = item.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/ /g, "_").replace(/['’]/g,"");
+  return "images/120px-" + clean + ".webp";
+}
+
+  function calculatePlan() {
+    console.clear();
+    console.log("=== Nouveau calcul de plan ===");
+    // Reset
+    factoryGraph.length = 0;
+    for (let key in plan) plan[key] = [];
+    ["smelter-list","foundry-list","constructor-list","assembler-list","refinery-list"].forEach(id => {
+      document.getElementById(id).innerHTML = "";
+    });
+    const errBox = document.getElementById("missing-resources");
+    errBox.textContent = "";
+    errBox.style.display = 'none';
+
+    // Parse inputs
+    const finalItem = document.getElementById("finalItem").value;
+    const available = {};
+    baseResources.forEach(res => {
+      available[res] = parseFloat(document.getElementById(res).value) || 0;
+    });
+
+    // 1) Compute raw needs per unit of finalItem
+    const perUnitRaw = {};
+    function computeRaw(item, qty) {
+      if (baseResources.includes(item)) {
+        perUnitRaw[item] = (perUnitRaw[item] || 0) + qty;
+      } else if (recipes[item]) {
+        const rec = recipes[item];
+        for (let inp in rec.inputs) {
+          computeRaw(inp, (rec.inputs[inp] / rec.output) * qty);
+        }
+      }
+    }
+    computeRaw(finalItem, 1);
+
+    // 2) Determine how many final units can be produced
+    let maxUnits = Infinity;
+    for (let raw in perUnitRaw) {
+      const units = Math.floor(available[raw] / perUnitRaw[raw]);
+      maxUnits = Math.min(maxUnits, units);
+    }
+    if (maxUnits === Infinity || maxUnits <= 0) {
+      // Identifier les ressources manquantes
+      const missingRaw = [];
+      for (const raw in perUnitRaw) {
+        if ((available[raw] || 0) < perUnitRaw[raw]) {
+          missingRaw.push(itemName[raw] || raw);
+        }
+      }
+      if (missingRaw.length > 0) {
+        errBox.textContent = "Manque de ressource brute : " + missingRaw.join(", ");
+      } else {
+        errBox.textContent = "Ressources insuffisantes pour produire " + itemName[finalItem];
+      }
+      if (errBox.textContent && errBox.textContent.trim() !== "") {
+        errBox.style.display = 'flex';
+      } else {
+        errBox.style.display = 'none';
+      }
+      return;
+    }
+
+    // 3) Build total demands for each item scaled by maxUnits
+    const demands = {};
+    function collect(item, qty) {
+      demands[item] = (demands[item] || 0) + qty;
+      if (recipes[item]) {
+        const rec = recipes[item];
+        for (let inp in rec.inputs) {
+          collect(inp, (rec.inputs[inp] / rec.output) * qty);
+        }
+      }
+    }
+    collect(finalItem, maxUnits);
+
+    // 4) Topological sort items by dependency depth
+    const depthMap = {};
+    function depth(item) {
+      if (depthMap[item] !== undefined) return depthMap[item];
+      if (baseResources.includes(item) || !recipes[item]) {
+        return depthMap[item] = 0;
+      }
+      let d = 0;
+      for (let inp in recipes[item].inputs) {
+        d = Math.max(d, depth(inp) + 1);
+      }
+      return depthMap[item] = d;
+    }
+    Object.keys(demands).forEach(depth);
+    const itemsSorted = Object.keys(demands).sort((a,b) => depthMap[a] - depthMap[b]);
+
+    // 5) Calculate machines for each item and build plan + graph
+    // === Remplacement: 1 node par machine (fractionnaire) ===
+    let machineIndex = 0;
+    itemsSorted.forEach(item => {
+      if (baseResources.includes(item)) return;
+      const rec = recipes[item];
+      const needed = demands[item];
+      if (!rec || !needed || !rec.output || isNaN(needed) || isNaN(rec.output) || needed < 0.00001 || rec.output < 0.00001) return;
+      const outRate = rec.output;
+      const machines = needed / outRate;
+      const machinesFull = Math.floor(machines);
+      const lastPercent = (machines - machinesFull) * 100;
+      const produced = machines * outRate;
+      const surplus = produced - needed;
+      // Plan description
+      const inputsDesc = Object.entries(rec.inputs)
+        .map(([inp, rate]) => ((machines * rate).toFixed(2) + ' ' + (itemName[inp] || inp) + '/min'))
+        .join(' et ');
+      plan[buildingCategory[rec.building]].push(
+        (machinesFull + (lastPercent > 0.001 ? 1 : 0)) + ' ' + rec.building + ((machinesFull + (lastPercent > 0.001 ? 1 : 0)) > 1 ? 's' : '') +
+        ' → ' + produced.toFixed(2) + ' ' + (itemName[item] || item) + '/min' +
+        (inputsDesc ? ' (' + inputsDesc + ')' : '') +
+        (surplus > 0 ? ' ↑ ' + surplus.toFixed(2) : '')
+      );
+      // Deduct raw usage
+      Object.entries(rec.inputs).forEach(([inp, rate]) => {
+        if (baseResources.includes(inp)) {
+          available[inp] -= machines * rate;
+        }
+      });
+      // Génère 1 node par machine à 100% (catégorie doit être la clé anglaise)
+      for (let i = 0; i < machinesFull; ++i) {
+        factoryGraph.push({
+          machine: rec.building,
+          name: itemName[item] || item,
+          count: 1,
+          produces: item,
+          producesQty: outRate,
+          consumes: Object.entries(rec.inputs).map(([inp, r]) => ({
+            item: inp,
+            qty: r
+          })),
+          percent: 100,
+          surplus: 0,
+          id: `m${machineIndex++}`,
+          category: buildingCategory[rec.building]
+        });
+      }
+      // ...et un node à lastPercent si besoin (catégorie doit être la clé anglaise)
+      if (lastPercent > 0.001) {
+        factoryGraph.push({
+          machine: rec.building,
+          name: itemName[item] || item,
+          count: lastPercent / 100,
+          produces: item,
+          producesQty: outRate * (lastPercent / 100),
+          consumes: Object.entries(rec.inputs).map(([inp, r]) => ({
+            item: inp,
+            qty: r * (lastPercent / 100)
+          })),
+          percent: lastPercent,
+          surplus: 0,
+          id: `m${machineIndex++}`,
+          category: buildingCategory[rec.building]
+        });
+      }
+    });
+
+    // 6) Render lists (nouvelle boucle : filtrer les nodes par n.category === type)
+    let machinesTotal = 0; 
+
+    for (let type in plan) {
+      let listElem = document.getElementById(type.toLowerCase() + "-list");
+      listElem.innerHTML = '';
+      // récupérer tous les noeuds de ce type
+      const nodes = factoryGraph.filter(n => n.category === type);
+      if (nodes.length === 0) {
+        // Pas de machine de ce type
+        const li = document.createElement('li');
+        li.textContent = 'Aucune';
+        listElem.appendChild(li);
+      } else {
+        // Grouper par item produit
+        const groups = {};
+        nodes.forEach(node => {
+          const key = node.produces;
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(node);
+        });
+        // Pour la numérotation, maintenir un compteur propre à chaque produit pour ce type de machine
+        for (let key in groups) {
+          const group = groups[key];
+          let prodIdx = 1;
+          group.forEach((node) => {
+            machinesTotal++;
+            const li = document.createElement('li');
+            const inputsStr = node.consumes.map(c => `${c.qty.toFixed(2)} ${(itemName[c.item]||c.item)}/min`).join(', ');
+            li.innerHTML = `<strong>${node.machine} ${prodIdx}</strong> : Inputs : ${inputsStr} → Output : ${node.producesQty.toFixed(2)} ${(itemName[node.produces])||node.produces}/min (<span style="color:#2196f3;font-weight:bold">${node.percent.toFixed(2)}%</span>)`;
+            listElem.appendChild(li);
+            prodIdx++;
+          });
+        }
+      }
+    }
+    // Afficher la production totale du produit final
+    const finalOutputDiv = document.getElementById("final-output");
+    finalOutputDiv.innerHTML =
+      `Production finale : <span style="color:#2196f3;">${(demands[finalItem]||0).toFixed(2)} ${(itemName[finalItem]||finalItem)}/min</span>`;
+
+    // Si aucune machine n'est créée (bug ou ressources insuffisantes)
+    if (machinesTotal === 0) {
+      const errBox = document.getElementById("missing-resources");
+      errBox.textContent = "Aucune machine n'a pu être créée. Vérifiez les quantités de ressources ou signalez ce bug.";
+      if (errBox.textContent && errBox.textContent.trim() !== "") {
+        errBox.style.display = 'flex';
+      } else {
+        errBox.style.display = 'none';
+      }
+      console.error("DEBUG: Aucune machine créée. Variables:", {plan, factoryGraph});
+      return;
+    }
+    // Avertir si des ressources d'entrée étaient inutiles pour la production choisie
+    const finalRawNeeded = {};
+    function markRawNeeded(item) {
+      if (baseResources.includes(item)) {
+        finalRawNeeded[item] = true;
+      } else if (recipes[item]) {
+        for (let inp in recipes[item].inputs) {
+          markRawNeeded(inp);
+        }
+      }
+    }
+    markRawNeeded(finalItem);
+    const unusedRaw = [];
+    for (let raw of baseResources) {
+      if (available[raw] > 0 && !finalRawNeeded[raw]) {
+        unusedRaw.push(itemName[raw] || raw);
+      }
+    }
+    if (unusedRaw.length > 0) {
+      const errBox = document.getElementById("missing-resources");
+      errBox.textContent =
+        "Ressources brutes non utilisées pour " + (itemName[finalItem] || finalItem) + " : " + unusedRaw.join(", ");
+      if (errBox.textContent && errBox.textContent.trim() !== "") {
+        errBox.style.display = 'flex';
+      } else {
+        errBox.style.display = 'none';
+      }
+    } else {
+      // If message was previously shown, hide it if not needed
+      const errBox = document.getElementById("missing-resources");
+      if (!errBox.textContent || errBox.textContent.trim() === "") {
+        errBox.style.display = 'none';
+      }
+    }
+
+    // === SCHÉMA (canvas) : arborescence verticale de haut en bas ===
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // --- Génération du schéma arborescent avec splitters/mergers uniquement sur vrais croisements ---
+    // 1. Construire la liste des liens de base (edges)
+    let edges = [];
+    let outputToNodes = {}; // item -> [nodes produisant cet item]
+    let inputToNodes = {}; // item -> [nodes consommant cet item]
+    factoryGraph.forEach(node => {
+      // outputs
+      if (!outputToNodes[node.produces]) outputToNodes[node.produces] = [];
+      outputToNodes[node.produces].push(node);
+      // inputs
+      node.consumes.forEach(c => {
+        if (!inputToNodes[c.item]) inputToNodes[c.item] = [];
+        inputToNodes[c.item].push(node);
+      });
+    });
+    // Pour chaque node, relier ses inputs aux parents (machines produisant cet input)
+    factoryGraph.forEach(child => {
+      child.consumes.forEach(input => {
+        let parents = outputToNodes[input.item] || [];
+        let qtyLeft = input.qty;
+        for (let parent of parents) {
+          if (qtyLeft > 0) {
+            edges.push({ from: parent, to: child, item: input.item });
+            qtyLeft -= parent.producesQty;
+          }
+        }
+      });
+    });
+
+    // 2. Détection et insertion des splitters/mergers uniquement sur vrais croisements
+    // Fonction modulaire pour insérer Splitter/Merger si besoin
+    function insertSplitterMergerIfNeeded(edges, nodes) {
+      let mergerNodes = [];
+      let splitterNodes = [];
+      let mergerId = 1, splitterId = 1;
+      let mergerMap = {}, splitterMap = {};
+      // --- Mergers: convergence de plusieurs outputs vers un même input d'une machine ---
+      // Pour chaque node, pour chaque input, si plusieurs parents produisent cet input pour ce node
+      nodes.forEach(child => {
+        if (!child.consumes) return;
+        child.consumes.forEach(input => {
+          // Trouver tous les parents (machines) qui produisent cet input et ont une arête vers ce node
+          let directParents = edges.filter(e => e.to === child && e.item === input.item).map(e => e.from);
+          if (directParents.length > 1) {
+            let mergerKey = child.id + "|" + input.item;
+            if (!mergerMap[mergerKey]) {
+              let mergerNode = {
+                id: "merger" + (mergerId++),
+                type: "Merger",
+                label: "Merger",
+                color: "#888",
+                width: 70,
+                height: 36,
+                inputItem: input.item,
+                outputItem: input.item,
+                parents: directParents,
+                child: child
+              };
+              mergerNodes.push(mergerNode);
+              mergerMap[mergerKey] = mergerNode;
+            }
+          }
+        });
+      });
+      // --- Splitters: un même parent envoie son output à plusieurs machines consommatrices ---
+      nodes.forEach(parent => {
+        let outEdges = edges.filter(e => e.from === parent);
+        let children = outEdges.map(e => e.to);
+        // Pour chaque output item, s'il y a plusieurs consommateurs
+        let outputItem = parent.produces;
+        let count = children.length;
+        if (count > 1) {
+          if (!splitterMap[parent.id]) {
+            let splitterNode = {
+              id: "splitter" + (splitterId++),
+              type: "Splitter",
+              label: "Splitter",
+              color: "#888",
+              width: 70,
+              height: 36,
+              inputItem: outputItem,
+              outputItem: outputItem,
+              parent: parent,
+              children: children
+            };
+            splitterNodes.push(splitterNode);
+            splitterMap[parent.id] = splitterNode;
+          }
+        }
+      });
+      // Marquer les edges à remplacer
+      let edgeIsMerged = {};
+      let edgeIsSplit = {};
+      mergerNodes.forEach(merger => {
+        for (let parent of merger.parents) {
+          edgeIsMerged[parent.id + "|" + merger.child.id + "|" + merger.inputItem] = merger;
+        }
+      });
+      splitterNodes.forEach(splitter => {
+        for (let child of splitter.children) {
+          edgeIsSplit[splitter.parent.id + "|" + child.id + "|" + splitter.inputItem] = splitter;
+        }
+      });
+      return {
+        mergerNodes, splitterNodes, mergerMap, splitterMap, edgeIsMerged, edgeIsSplit
+      };
+    }
+
+    // Utilisation de la fonction modulaire
+    let {
+      mergerNodes, splitterNodes, mergerMap, splitterMap, edgeIsMerged, edgeIsSplit
+    } = insertSplitterMergerIfNeeded(edges, factoryGraph);
+
+    // Ajoute mergers/splitters au allNodes pour le dessin
+    let allNodes = [...factoryGraph, ...mergerNodes, ...splitterNodes];
+
+    // Placement vertical arborescent : 1 niveau = 1 type de machine (Fonderie, Constructeur, etc.)
+    // On définit explicitement l'ordre des niveaux (de haut en bas)
+    const orderedCategories = ["Smelter", "Foundry", "Constructor", "Assembler", "Refinery"];
+    // Map chaque catégorie à un niveau Y (ligne)
+    const categoryLevel = {};
+    let yLevel = 0;
+    orderedCategories.forEach(cat => { categoryLevel[cat] = yLevel++; });
+    // Les mergers/splitters seront placés au niveau de l'entrée/sortie qu'ils relient (entre 2 niveaux)
+
+    // Placement horizontal : chaque machine d'un même type alignée sur la même ligne
+    // On regroupe les nodes par catégorie
+    const nodesByCategory = {};
+    factoryGraph.forEach(n => {
+      if (!nodesByCategory[n.category]) nodesByCategory[n.category] = [];
+      nodesByCategory[n.category].push(n);
+    });
+
+    // Définition des tailles
+    const blockW = 180, blockH = 60, hGap = 40, vGap = 80;
+    const mergerW = 70, mergerH = 36;
+    const splitterW = 70, splitterH = 36;
+
+    // Calcul du max de machines sur un niveau, pour centrer si besoin
+    let maxPerLevel = 0;
+    orderedCategories.forEach(cat => {
+      maxPerLevel = Math.max(maxPerLevel, (nodesByCategory[cat]||[]).length);
+    });
+
+    // Positionne chaque machine sur sa ligne (catégorie), espacée horizontalement
+    const nodePositions = {}; // id -> {x, y}
+    orderedCategories.forEach((cat, idx) => {
+      const arr = nodesByCategory[cat] || [];
+      const total = arr.length;
+      // Centrage horizontal
+      const totalWidth = total * blockW + (total-1)*hGap;
+      let startX = 60 + Math.max(0, ((maxPerLevel*blockW + (maxPerLevel-1)*hGap) - totalWidth)/2);
+      arr.forEach((node, i) => {
+        node.x = startX + i * (blockW + hGap);
+        node.y = 50 + idx * (blockH + vGap + 40);
+        node.width = blockW;
+        node.height = blockH;
+        nodePositions[node.id] = {x: node.x, y: node.y};
+      });
+    });
+
+    // Place mergers/splitters exactement entre parents/enfants (verticalement entre niveaux)
+    // Pour chaque merger: placer entre parents (niveau cat-1) et child (niveau cat)
+    mergerNodes.forEach(merger => {
+      // Parents : machines du niveau au dessus, child : machine du niveau en dessous
+      let child = merger.child;
+      let parentYs = merger.parents.map(p => p.y + p.height);
+      let avgParentX = merger.parents.reduce((s,p)=>s+(p.x+p.width/2),0)/merger.parents.length;
+      // Place le merger sur la ligne intermédiaire, centré horizontalement sur les parents
+      let y = child.y - vGap/2 - mergerH/2;
+      merger.x = avgParentX - mergerW/2;
+      merger.y = y;
+      merger.width = mergerW;
+      merger.height = mergerH;
+      nodePositions[merger.id] = {x: merger.x, y: merger.y};
+    });
+    splitterNodes.forEach(splitter => {
+      // Parent : machine du niveau au dessus, children : machines du niveau en dessous
+      let parent = splitter.parent;
+      let childYs = splitter.children.map(c => c.y);
+      let avgChildX = splitter.children.reduce((s,c)=>s+(c.x+c.width/2),0)/splitter.children.length;
+      // Place le splitter sur la ligne intermédiaire, centré horizontalement sur les enfants
+      let y = parent.y + parent.height + vGap/2 - splitterH/2;
+      splitter.x = avgChildX - splitterW/2;
+      splitter.y = y;
+      splitter.width = splitterW;
+      splitter.height = splitterH;
+      nodePositions[splitter.id] = {x: splitter.x, y: splitter.y};
+    });
+    // Ajoute mergers/splitters au allNodes pour le dessin
+    allNodes = [...factoryGraph, ...mergerNodes, ...splitterNodes];
+
+    // Adapter la taille du canvas
+    let maxX = 0, maxY = 0;
+    allNodes.forEach(node => {
+      if (node.x + node.width > maxX) maxX = node.x + node.width;
+      if (node.y + node.height > maxY) maxY = node.y + node.height;
+    });
+    canvas.width = Math.max(maxX + 80, 1000);
+    canvas.height = Math.max(maxY + 80, 600);
+
+    // Flèche à coude : verticale puis horizontale, adapté aux mergers/splitters
+    function drawArrowBend(from, to, color, opts={}) {
+      // On veut: vertical depuis from, puis horizontal, puis vertical vers to
+      let fromX = from.x + (from.width||blockW)/2;
+      let fromY = from.y + (from.height||blockH);
+      let toX = to.x + (to.width||blockW)/2;
+      let toY = to.y;
+      // Si merger/splitter, ajuster points d'entrée/sortie
+      if (from.type === "Splitter") fromY = from.y + from.height/2;
+      if (to.type === "Merger") toY = to.y + to.height/2;
+      // Ajoute un coude pour éviter superposition
+      const midY = (fromY + toY) / 2;
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(fromX, midY);
+      ctx.lineTo(toX, midY);
+      ctx.lineTo(toX, toY - 8);
+      ctx.strokeStyle = color || "#222";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - 6, toY - 8);
+      ctx.lineTo(toX + 6, toY - 8);
+      ctx.closePath();
+      ctx.fillStyle = color || "#222";
+      ctx.fill();
+    }
+
+    // Dessiner les flèches en tenant compte des mergers/splitters
+    // - Pour chaque merger: parents → merger, merger → child
+    mergerNodes.forEach(merger => {
+      for (let parent of merger.parents) {
+        drawArrowBend(parent, merger, "#444");
+      }
+      drawArrowBend(merger, merger.child, "#444");
+    });
+    // - Pour chaque splitter: parent → splitter, splitter → enfants
+    splitterNodes.forEach(splitter => {
+      drawArrowBend(splitter.parent, splitter, "#444");
+      for (let child of splitter.children) {
+        drawArrowBend(splitter, child, "#444");
+      }
+    });
+    // - Pour les autres edges: parent → child (si pas merger/splitter)
+    edges.forEach(e => {
+      let merger = edgeIsMerged[e.from.id + "|" + e.to.id + "|" + e.item];
+      let splitter = edgeIsSplit[e.from.id + "|" + e.to.id + "|" + e.item];
+      if (!merger && !splitter) {
+        drawArrowBend(e.from, e.to, "#333");
+      }
+    });
+
+    // Dessiner les nodes (machines, mergers, splitters)
+    allNodes.forEach(node => {
+      if (node.type === "Merger" || node.type === "Splitter") {
+        ctx.fillStyle = node.color || "#888";
+        ctx.fillRect(node.x, node.y, node.width, node.height);
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(node.x, node.y, node.width, node.height);
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 16px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(node.label, node.x + node.width/2, node.y + node.height/2);
+      } else {
+        ctx.fillStyle = colors[typeMap[node.machine]] || "#888";
+        ctx.fillRect(node.x, node.y, blockW, blockH);
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(node.x, node.y, blockW, blockH);
+
+        // Ajout : dessin de l’icône à gauche du texte
+        const imgPath = getItemImage(node.name);
+        const icon = new Image();
+        icon.src = imgPath;
+        const iconSize = 36;
+        // Coordonnées pour l'icône et le texte
+        const iconX = node.x + 10;
+        const iconY = node.y + 12;
+        const textX = iconX + iconSize + 12;
+        const percentY = iconY;
+        const rateY = iconY + 22;
+        icon.onload = function() {
+          ctx.drawImage(icon, iconX, iconY, iconSize, iconSize);
+          // Texte à droite de l’icône, aligné verticalement
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 16px Segoe UI";
+          ctx.textAlign = "start";
+          ctx.textBaseline = "top";
+          ctx.fillText(
+            `${node.percent.toFixed(2)}%`, textX, percentY
+          );
+          ctx.font = "14px Segoe UI";
+          ctx.fillText(
+            `${node.producesQty.toFixed(2)} ${node.name}/min`, textX, rateY
+          );
+        };
+        // Si l'icône est déjà chargée, dessine immédiatement
+        if (icon.complete) icon.onload();
+      }
+    });
+
+    // Centre le scroll pour afficher le dernier niveau
+    let lastCat = orderedCategories.slice().reverse().find(cat => (nodesByCategory[cat]||[]).length > 0);
+    let lastNodes = (nodesByCategory[lastCat] || []);
+    if (lastNodes.length > 0) {
+      let yAvg = lastNodes.reduce((s, n) => s + n.y, 0) / lastNodes.length;
+      let scrollX = lastNodes[0].x + (lastNodes[0].width||blockW)/2 - container.clientWidth/2;
+      let scrollY = yAvg + (lastNodes[0].height||blockH)/2 - container.clientHeight/2;
+      container.scrollLeft = Math.max(0, scrollX);
+      container.scrollTop = Math.max(0, scrollY);
+    } else {
+      container.scrollLeft = 0;
+      container.scrollTop = 0;
+    }
+    // Affichage du graphe de production avec vis-network
+    console.log("DEBUG: factoryGraph avant le graphe vis-network :", factoryGraph);
+    drawProductionGraphVisJS(factoryGraph);
+  }
+
+  // Activation du bouton "Calculer le plan" après chargement
+  document.getElementById("btn-calc").addEventListener("click", calculatePlan);
+
+  // Affichage du graphe de production avec vis-network
+  function drawProductionGraphVisJS(factoryGraph) {
+    console.log("factoryGraph pour vis-network", factoryGraph);
+    if (!factoryGraph || factoryGraph.length === 0) {
+        document.getElementById('prod-graph').innerHTML = "<p style='color:white;text-align:center;padding:2em;'>Aucun schéma à afficher (pas de machines détectées).</p>";
+        return;
+    }
+    let nodes = [];
+    let edges = [];
+    let idMap = {};
+
+    // Catégories ordonnées pour placement horizontal (de gauche à droite)
+    const typeOrder = ["Smelter", "Foundry", "Constructor", "Assembler", "Refinery"];
+    const ySpacing = 130, xSpacing = 300;
+    const nodesByType = {};
+    factoryGraph.forEach(mach => {
+        if (!nodesByType[mach.category]) nodesByType[mach.category] = [];
+        nodesByType[mach.category].push(mach);
+    });
+
+    // On attribue une position initiale pour chaque case (vertical)
+    factoryGraph.forEach((mach, idx) => {
+        let col = typeOrder.indexOf(mach.category);
+        if (col === -1) col = typeOrder.length; // Inconnu tout à droite
+        let row = nodesByType[mach.category].indexOf(mach);
+
+        let nid = "n" + idx;
+        idMap[mach.id] = nid;
+        // Nouveau label : pourcentage, nom du produit, débit/min (trois lignes)
+        let percentStr = mach.percent.toFixed(2) + "%";
+        let prodName = mach.name;
+        let rateStr = mach.producesQty.toFixed(2) + "/min";
+        let label = percentStr + "\n" + prodName + "\n" + rateStr;
+        nodes.push({
+            id: nid,
+            label: label,
+            color: {
+                background:
+                    mach.category === "Smelter" ? "#51ad28" :
+                    mach.category === "Foundry" ? "#9959a9" :
+                    mach.category === "Constructor" ? "#ff9800" :
+                    mach.category === "Assembler" ? "#1976d2" :
+                    mach.category === "Refinery" ? "#795548" : "#888",
+                border: "#fff",
+                highlight: "#f3f700"
+            },
+            font: { color: "#fff", face: "Segoe UI", size: 18, bold: true },
+            shape: "box",
+            margin: 16,
+            x: 80 + col * xSpacing,
+            y: 70 + row * ySpacing
+            // fixed removed to allow movement after initial placement
+        });
+    });
+
+    // Les liens (edges)
+    factoryGraph.forEach((mach, idx) => {
+        if (mach.consumes) {
+            mach.consumes.forEach(input => {
+                let producers = factoryGraph.filter(m2 => m2.produces === input.item);
+                let qtyNeeded = input.qty;
+                for (let producer of producers) {
+                    let qtyAvailable = producer.producesQty;
+                    if (qtyNeeded <= 0) break;
+                    let qtyUsed = Math.min(qtyNeeded, qtyAvailable);
+                    edges.push({
+                        from: idMap[producer.id],
+                        to: idMap[mach.id],
+                        arrows: "to",
+                        color: "#eee",
+                        label: qtyUsed.toFixed(2) + "/min",
+                        font: { color: "#fff", align: "middle", strokeWidth: 0 }
+                    });
+                    qtyNeeded -= qtyUsed;
+                }
+            });
+        }
+    });
+
+    // Ajoute des nodes pour les ressources brutes consommées directement
+    factoryGraph.forEach(mach => {
+        if (mach.consumes) {
+            mach.consumes.forEach(input => {
+                let producers = factoryGraph.filter(m2 => m2.produces === input.item);
+                if (producers.length === 0) {
+                    // Personne ne produit cet input : c'est une ressource brute !
+                    let sourceId = "src_" + input.item;
+                    if (!nodes.find(n => n.id === sourceId)) {
+                        nodes.push({
+                            id: sourceId,
+                            label: "\n" + (itemName[input.item] || input.item),
+                            image: getItemImage(input.item),
+                            shape: "image",
+                            color: { background: "#33691e", border: "#fff" },
+                            font: { color: "#fff", size: 16, face: "Segoe UI", bold: true },
+                            margin: 12,
+                            x: 10,
+                            y: 200
+                        });
+                    }
+                    edges.push({
+                        from: sourceId,
+                        to: idMap[mach.id],
+                        arrows: "to",
+                        color: "#7eae7e",
+                        label: input.qty.toFixed(2) + "/min",
+                        font: { color: "#fff", align: "middle", strokeWidth: 0 }
+                    });
+                }
+            });
+        }
+    });
+
+    // Ajoute un node final pour l'output non consommé (ex: produit final)
+    factoryGraph.forEach(mach => {
+        let isConsumed = factoryGraph.some(m2 =>
+            m2.consumes && m2.consumes.some(input => input.item === mach.produces)
+        );
+        if (!isConsumed) {
+            let finalId = "output_" + mach.produces;
+            if (!nodes.find(n => n.id === finalId)) {
+                nodes.push({
+                    id: finalId,
+                    label: "\n" + (itemName[mach.produces] || mach.produces),
+                    image: getItemImage(itemName[mach.produces] || mach.produces),
+                    shape: "image",
+                    color: { background: "#0d47a1", border: "#fff" },
+                    font: { color: "#fff", size: 18, face: "Segoe UI", bold: true },
+                    margin: 12,
+                    x: 950,
+                    y: 250
+                });
+            }
+            edges.push({
+                from: idMap[mach.id],
+                to: finalId,
+                arrows: "to",
+                color: "#1976d2",
+                label: mach.producesQty.toFixed(2) + "/min",
+                font: { color: "#fff", align: "middle", strokeWidth: 0 }
+            });
+        }
+    });
+
+    // Adapter nodes pour afficher image si id commence par src_ ou output_
+    nodes = nodes.map(n => {
+      if (
+        (typeof n.id === "string" && n.id.startsWith("src_")) ||
+        (typeof n.id === "string" && n.id.startsWith("output_"))
+      ) {
+        // Déjà traité ci-dessus (shape: image, image: getItemImage, label: "")
+        return n;
+      }
+      // Les autres nodes (machines) : la forme et label restent comme avant
+      return n;
+    });
+
+    let container = document.getElementById('prod-graph');
+    container.innerHTML = "";
+    let data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+    let options = {
+      layout: { hierarchical: false, improvedLayout: false },
+      edges: {
+        smooth: { type: "straightCross" },
+        arrows: { to: { enabled: true, scaleFactor: 1.1 } }
+      },
+      interaction: {
+        dragNodes: true,
+        dragView: true,
+        zoomView: true
+      },
+      physics: false // Physique totalement désactivée, blocs libres
+    };
+    new vis.Network(container, data, options);
+  }
+
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const el = document.getElementById('finalItem');
+  const choices = new Choices(el, {
+    searchEnabled: false,
+    itemSelectText: '',
+    shouldSort: false,
+    callbackOnCreateTemplates: function(template) {
+      return {
+        // Affichage dans le menu déroulant (dropdown)
+        choice: (classNames, data) => {
+          let img = '';
+          if (data.customProperties && data.customProperties.img) {
+            img = `<img src="${data.customProperties.img}" style="width:40px;height:40px;vertical-align:middle;margin-right:8px;border-radius:5px;">`;
+          } else if (data.element && data.element.dataset && data.element.dataset.img) {
+            img = `<img src="${data.element.dataset.img}" style="width:40px;height:40px;vertical-align:middle;margin-right:8px;border-radius:5px;">`;
+          }
+          return template(`
+            <div class="${classNames.item} ${classNames.itemChoice}" data-select-text="" data-choice data-id="${data.id}" data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''} style="font-size:1.4rem;font-weight:500;line-height:42px;">
+              ${img}${data.label}
+            </div>
+          `);
+        },
+        // Affichage dans la zone sélectionnée
+        item: (classNames, data) => {
+          let img = '';
+          if (data.customProperties && data.customProperties.img) {
+            img = `<img src="${data.customProperties.img}" style="width:40px;height:40px;vertical-align:middle;margin-right:8px;border-radius:5px;">`;
+          } else if (data.element && data.element.dataset && data.element.dataset.img) {
+            img = `<img src="${data.element.dataset.img}" style="width:40px;height:40px;vertical-align:middle;margin-right:8px;border-radius:5px;">`;
+          }
+          return template(`
+            <div class="${classNames.item} ${classNames.itemSelectable}" data-item data-id="${data.id}" data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''} style="font-size:1.4rem;font-weight:500;line-height:42px;">
+              ${img}${data.label}
+            </div>
+          `);
+        }
+      };
+    }
+  });
+// Injecte la propriété img à chaque option
+  Array.from(el.options).forEach(opt => {
+    let img = opt.getAttribute('data-img');
+    if (img) {
+      // Remplacer partout dans data-img si besoin (sécurité)
+      img = img.replace(/https:\/\/static\.wikia\.nocookie\.net\/satisfactory_gamepedia\/images\//g, 'https://static.wiki.gg/satisfactory/images/');
+      const c = choices._store.getChoiceByValue(opt.value);
+      if (c) c.customProperties = { img };
+    }
+  });
+});
+</script>
+</body>
+</html>
